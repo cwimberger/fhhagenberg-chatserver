@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -55,30 +54,42 @@ func streamHandler(w http.ResponseWriter, r *http.Request) {
 	send(w, &Message{Text: "Welcome to hagenberg chat!", Type: "welcome"})
 	broadcast(&Message{Text: email + " joined the chat.", Type: "join"})
 
-	defer broadcast(&Message{Text: email + " left the chat.", Type: "leave"})
-
 	msgChan := make(chan *Message)
 	c := &ChatClient{MsgChan: msgChan}
 	clients = append(clients, c)
 
 	for {
 		msg := <-msgChan
-		send(w, msg)
+		err := send(w, msg)
+		if err != nil {
+			break
+		}
 	}
+
+	broadcast(&Message{Text: email + " left the chat.", Type: "leave"})
 }
 
-func send(w http.ResponseWriter, message *Message) {
+func send(w http.ResponseWriter, message *Message) error {
 	b, err := json.Marshal(message)
 	if err != nil {
-		fmt.Println("error:", err)
-		return
+		return err
 	}
 
-	w.Write(b)
+	_, err = w.Write(b)
+	if err != nil {
+		return err
+	}
+
 	w.Write([]byte("\n"))
+	if err != nil {
+		return err
+	}
+
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
 	}
+
+	return nil
 }
 
 func postHandler(w http.ResponseWriter, r *http.Request) {
