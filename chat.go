@@ -36,7 +36,7 @@ func validateText(text string) bool {
 		return false
 	}
 
-	return !strings.ContainsAny(text, "\n\r\t ")
+	return !strings.ContainsAny(text, "\n\r\t")
 }
 
 func streamHandler(w http.ResponseWriter, r *http.Request) {
