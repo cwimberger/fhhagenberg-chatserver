@@ -53,6 +53,9 @@ func streamHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	send(w, &Message{Text: "Welcome to hagenberg chat!", Type: "welcome"})
+	broadcast(&Message{Text: email + " joined the chat.", Type: "join"})
+
+	defer broadcast(&Message{Text: email + " left the chat.", Type: "leave"})
 
 	msgChan := make(chan *Message)
 	c := &ChatClient{MsgChan: msgChan}
