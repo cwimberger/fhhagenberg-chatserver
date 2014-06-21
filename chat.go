@@ -52,24 +52,29 @@ func streamHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(http.StatusOK)
 
+	send(w, &Message{Text: "Welcome to hagenberg chat!", Type: "welcome"})
+
 	msgChan := make(chan *Message)
 	c := &ChatClient{MsgChan: msgChan}
 	clients = append(clients, c)
 
 	for {
 		msg := <-msgChan
+		send(w, msg)
+	}
+}
 
-		b, err := json.Marshal(msg)
-		if err != nil {
-			fmt.Println("error:", err)
-		}
+func send(w http.ResponseWriter, message *Message) {
+	b, err := json.Marshal(message)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
 
-		w.Write(b)
-		w.Write([]byte("\n"))
-
-		if f, ok := w.(http.Flusher); ok {
-			f.Flush()
-		}
+	w.Write(b)
+	w.Write([]byte("\n"))
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
 	}
 }
 
@@ -95,14 +100,12 @@ func postHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := &Message{
-		Email: email,
-		Text:  text,
-		Type:  typ,
-	}
+	broadcast(&Message{Email: email, Text: text, Type: typ})
+}
 
+func broadcast(message *Message) {
 	for _, c := range clients {
-		c.MsgChan <- msg
+		c.MsgChan <- message
 	}
 }
 
