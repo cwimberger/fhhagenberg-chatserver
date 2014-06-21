@@ -1,1 +1,1 @@
-web: fhchat
+web: chat

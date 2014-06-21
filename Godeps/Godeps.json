@@ -1,0 +1,5 @@
+{
+	"ImportPath": "chat",
+	"GoVersion": "go1.3",
+	"Deps": []
+}
