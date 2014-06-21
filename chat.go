@@ -45,6 +45,8 @@ func streamHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	closeNotify := w.(http.CloseNotifier).CloseNotify()
+
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -59,14 +61,17 @@ func streamHandler(w http.ResponseWriter, r *http.Request) {
 	clients = append(clients, c)
 
 	for {
-		msg := <-msgChan
-		err := send(w, msg)
-		if err != nil {
-			break
+		select {
+		case msg := <-msgChan:
+			err := send(w, msg)
+			if err != nil {
+				break
+			}
+		case <-closeNotify:
+			broadcast(&Message{Text: email + " left the chat.", Type: "leave"})
+			return
 		}
 	}
-
-	broadcast(&Message{Text: email + " left the chat.", Type: "leave"})
 }
 
 func send(w http.ResponseWriter, message *Message) error {
