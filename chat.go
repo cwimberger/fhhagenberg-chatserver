@@ -13,9 +13,9 @@ type ChatClient struct {
 }
 
 type Message struct {
-	Email string `json:"email"`
-	Text  string `json:"text"`
-	Type  string `json:"type"`
+	Email string `json:"email,omitempty"`
+	Text  string `json:"text,omitempty"`
+	Type  string `json:"type,omitempty"`
 }
 
 var clients = []*ChatClient{}
@@ -45,33 +45,52 @@ func streamHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	closeNotify := w.(http.CloseNotifier).CloseNotify()
-
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(http.StatusOK)
 
+	// show welcome message to client
 	send(w, &Message{Text: "Welcome to hagenberg chat!", Type: "welcome"})
+
+	// tell others that client connected
 	broadcast(&Message{Text: email + " joined the chat.", Type: "join"})
+
+	closeNotify := w.(http.CloseNotifier).CloseNotify()
 
 	msgChan := make(chan *Message)
 	c := &ChatClient{MsgChan: msgChan}
 	clients = append(clients, c)
 
 	for {
+		done := false
+
 		select {
 		case msg := <-msgChan:
 			err := send(w, msg)
 			if err != nil {
-				break
+				done = true
 			}
 		case <-closeNotify:
-			broadcast(&Message{Text: email + " left the chat.", Type: "leave"})
-			return
+			done = true
+		}
+
+		if done {
+			break
 		}
 	}
+
+	// remove current client from clients slice
+	for i, client := range clients {
+		if client == c {
+			clients = append(clients[:i], clients[i+1:]...)
+			break
+		}
+	}
+
+	// tell others that client disconnected
+	broadcast(&Message{Text: email + " left the chat.", Type: "leave"})
 }
 
 func send(w http.ResponseWriter, message *Message) error {
